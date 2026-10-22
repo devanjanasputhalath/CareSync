@@ -1,0 +1,159 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareSync - Login</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f7fc;
+            margin: 0;
+            padding: 40px 16px;
+        }
+
+        .container {
+            max-width: 420px;
+            margin: auto;
+            padding: 25px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: #176b87;
+        }
+
+        label {
+            display: block;
+            margin-top: 16px;
+            margin-bottom: 6px;
+        }
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 22px;
+            border: none;
+            border-radius: 6px;
+            background: #176b87;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        #message {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .signup-link {
+            text-align: center;
+            margin-top: 18px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Welcome to CareSync</h1>
+
+        <form id="loginForm">
+            <label for="email">Email</label>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                autocomplete="email"
+                required
+            >
+
+            <label for="password">Password</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                autocomplete="current-password"
+                required
+            >
+
+            <button type="submit" id="loginButton">Login</button>
+        </form>
+
+        <p id="message" role="status" aria-live="polite"></p>
+
+        <p class="signup-link">
+            Don't have an account? <a href="signup.html">Sign up</a>
+        </p>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const message = document.getElementById('message');
+        const button = document.getElementById('loginButton');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            message.textContent = '';
+            button.disabled = true;
+            button.textContent = 'Logging in...';
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.message || 'Login failed. Please try again.'
+                    );
+                }
+
+                // Temporary demo storage; secure sessions will be added later.
+                sessionStorage.setItem(
+                    'caresyncUser',
+                    JSON.stringify(result.user)
+                );
+
+                window.location.href = 'doctors.html';
+            } catch (error) {
+                message.style.color = 'crimson';
+                message.textContent =
+                    error.message === 'Failed to fetch'
+                        ? 'Cannot reach the server. Please try again.'
+                        : error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Login';
+            }
+        });
+    </script>
+</body>
+</html>

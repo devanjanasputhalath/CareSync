@@ -1,0 +1,650 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareSync - Available Doctors</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f7fb;
+            margin: 0;
+            padding: 30px 16px;
+            color: #263445;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: auto;
+        }
+
+        .top-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #176b68;
+            text-align: center;
+            margin-top: 0;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #667085;
+            margin-bottom: 30px;
+        }
+
+        .doctor-card,
+        .booking-card,
+        .appointments-card {
+            background: white;
+            padding: 22px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .doctor-card h2,
+        .appointments-card h2 {
+            margin-top: 0;
+            color: #176b68;
+        }
+
+        .doctor-card p,
+        .appointments-card p {
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        button {
+            background: #176b68;
+            color: white;
+            border: none;
+            padding: 11px 18px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        button:hover {
+            background: #105451;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .cancel-button {
+            background: #b42318;
+        }
+
+        .cancel-button:hover {
+            background: #8f1c13;
+        }
+
+        label {
+            display: block;
+            margin-top: 14px;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccd5df;
+            border-radius: 7px;
+            font: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        .message {
+            margin-top: 15px;
+            font-weight: bold;
+            line-height: 1.5;
+        }
+
+        .success {
+            color: #187545;
+        }
+
+        .error {
+            color: #b42318;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .pending {
+            background: #fff1c2;
+            color: #805b00;
+        }
+
+        .confirmed {
+            background: #d9f5e5;
+            color: #176b45;
+        }
+
+        .cancelled {
+            background: #fde2e2;
+            color: #a61b1b;
+        }
+
+        .other-status {
+            background: #e7edf3;
+            color: #344054;
+        }
+
+        @media (max-width: 500px) {
+            body {
+                padding: 20px 12px;
+            }
+
+            .doctor-card,
+            .booking-card,
+            .appointments-card {
+                padding: 16px;
+            }
+
+            .top-actions button {
+                padding: 9px 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+
+        <div class="top-actions">
+            <button type="button" onclick="loadMyAppointments()">
+                My Appointments
+            </button>
+        </div>
+
+        <h1>CareSync</h1>
+        <p class="subtitle">Find a doctor and book an appointment</p>
+
+        <!-- My appointments appear here when the button is clicked -->
+        <section id="myAppointmentsSection" class="hidden">
+            <div class="appointments-card">
+                <h2>My Appointments</h2>
+                <div id="myAppointmentsList"></div>
+            </div>
+        </section>
+
+        <!-- Doctors are loaded from the database -->
+        <section>
+            <h2>Available Doctors</h2>
+            <div id="doctorList">Loading doctors...</div>
+        </section>
+
+        <!-- Booking form -->
+        <section id="bookingSection" class="booking-card hidden">
+            <h2>Book an Appointment</h2>
+
+            <p>
+                Selected doctor:
+                <strong id="selectedDoctor"></strong>
+            </p>
+
+            <form id="appointmentForm">
+                <input type="hidden" id="doctorId">
+
+                <label for="appointmentDate">Appointment date</label>
+                <input
+                    type="date"
+                    id="appointmentDate"
+                    required
+                >
+
+                <label for="appointmentTime">Appointment time</label>
+                <input
+                    type="time"
+                    id="appointmentTime"
+                    required
+                >
+
+                <label for="reason">Reason for appointment</label>
+                <textarea
+                    id="reason"
+                    rows="3"
+                    maxlength="255"
+                    placeholder="Briefly describe the reason (optional)"
+                ></textarea>
+
+                <br><br>
+
+                <button type="submit" id="bookButton">
+                    Confirm Appointment
+                </button>
+
+                <p id="bookingMessage" class="message" role="status"></p>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const doctorList = document.getElementById("doctorList");
+        const bookingSection = document.getElementById("bookingSection");
+        const appointmentForm = document.getElementById("appointmentForm");
+        const bookingMessage = document.getElementById("bookingMessage");
+        const bookButton = document.getElementById("bookButton");
+
+        // Set today's date as the earliest selectable appointment date.
+        function getLocalToday() {
+            const today = new Date();
+
+            return [
+                today.getFullYear(),
+                String(today.getMonth() + 1).padStart(2, "0"),
+                String(today.getDate()).padStart(2, "0")
+            ].join("-");
+        }
+
+        document.getElementById("appointmentDate").min = getLocalToday();
+
+        // Get the currently logged-in demo user.
+        function getCurrentUser() {
+            const savedUser = sessionStorage.getItem("caresyncUser");
+
+            if (!savedUser) {
+                return null;
+            }
+
+            try {
+                const user = JSON.parse(savedUser);
+
+                if (!user || !Number.isInteger(Number(user.id)) ||
+                    Number(user.id) < 1) {
+                    return null;
+                }
+
+                return user;
+            } catch {
+                sessionStorage.removeItem("caresyncUser");
+                return null;
+            }
+        }
+
+        // Load doctors from the MySQL database through the backend.
+        async function loadDoctors() {
+            try {
+                const response = await fetch("/doctors");
+
+                if (!response.ok) {
+                    throw new Error("Could not retrieve doctors.");
+                }
+
+                const doctors = await response.json();
+
+                doctorList.replaceChildren();
+
+                if (doctors.length === 0) {
+                    doctorList.textContent = "No doctors are available.";
+                    return;
+                }
+
+                doctors.forEach(doctor => {
+                    const card = document.createElement("article");
+                    card.className = "doctor-card";
+
+                    const name = document.createElement("h2");
+                    name.textContent = doctor.name;
+
+                    const specialization = document.createElement("p");
+                    specialization.textContent =
+                        "Specialization: " + doctor.specialization;
+
+                    const experience = document.createElement("p");
+                    experience.textContent =
+                        "Experience: " + doctor.experience + " years";
+
+                    const status = document.createElement("p");
+                    status.textContent = doctor.available
+                        ? "Status: Available for booking"
+                        : "Status: Currently unavailable";
+
+                    card.append(name, specialization, experience, status);
+
+                    if (doctor.available) {
+                        const button = document.createElement("button");
+                        button.textContent = "Book Appointment";
+
+                        button.addEventListener("click", () => {
+                            openBookingForm(doctor);
+                        });
+
+                        card.appendChild(button);
+                    }
+
+                    doctorList.appendChild(card);
+                });
+            } catch (error) {
+                doctorList.textContent =
+                    "Unable to load doctors. Please check that the CareSync server is running.";
+                console.error(error);
+            }
+        }
+
+        // Show the booking form for the selected doctor.
+        function openBookingForm(doctor) {
+            const user = getCurrentUser();
+
+            if (!user) {
+                alert("Please log in before booking an appointment.");
+                window.location.href = "login.html";
+                return;
+            }
+
+            document.getElementById("doctorId").value = doctor.id;
+            document.getElementById("selectedDoctor").textContent =
+                doctor.name;
+
+            bookingMessage.textContent = "";
+            bookingMessage.className = "message";
+
+            bookingSection.classList.remove("hidden");
+            bookingSection.scrollIntoView({ behavior: "smooth" });
+        }
+
+        // Submit a new appointment to the backend.
+        appointmentForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const user = getCurrentUser();
+
+            if (!user) {
+                alert("Please log in before booking an appointment.");
+                window.location.href = "login.html";
+                return;
+            }
+
+            const appointment = {
+                user_id: Number(user.id),
+                doctor_id: Number(document.getElementById("doctorId").value),
+                appointment_date:
+                    document.getElementById("appointmentDate").value,
+                appointment_time:
+                    document.getElementById("appointmentTime").value,
+                reason: document.getElementById("reason").value.trim()
+            };
+
+            if (!appointment.appointment_date ||
+                !appointment.appointment_time) {
+                bookingMessage.textContent =
+                    "Please select an appointment date and time.";
+                bookingMessage.className = "message error";
+                return;
+            }
+
+            bookButton.disabled = true;
+            bookButton.textContent = "Booking...";
+            bookingMessage.textContent = "";
+
+            try {
+                const response = await fetch("/appointments", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(appointment)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.message || "Unable to book the appointment."
+                    );
+                }
+
+                bookingMessage.textContent =
+                    result.message + " Your appointment ID is " +
+                    result.appointmentId + ".";
+
+                bookingMessage.className = "message success";
+
+                appointmentForm.reset();
+                document.getElementById("doctorId").value =
+                    appointment.doctor_id;
+                document.getElementById("appointmentDate").min =
+                    getLocalToday();
+
+            } catch (error) {
+                bookingMessage.textContent = error.message;
+                bookingMessage.className = "message error";
+            } finally {
+                bookButton.disabled = false;
+                bookButton.textContent = "Confirm Appointment";
+            }
+        });
+
+        // Display the current user's appointments on this same page.
+        async function loadMyAppointments() {
+            const user = getCurrentUser();
+
+            if (!user) {
+                alert("Please log in first.");
+                window.location.href = "login.html";
+                return;
+            }
+
+            const section =
+                document.getElementById("myAppointmentsSection");
+            const list =
+                document.getElementById("myAppointmentsList");
+
+            section.classList.remove("hidden");
+            list.textContent = "Loading appointments...";
+
+            section.scrollIntoView({ behavior: "smooth" });
+
+            try {
+                const response = await fetch(
+                    "/appointments/" + encodeURIComponent(user.id)
+                );
+
+                const appointments = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        appointments.message || "Could not load appointments."
+                    );
+                }
+
+                list.replaceChildren();
+
+                if (appointments.length === 0) {
+                    list.textContent =
+                        "You have no appointments yet. Choose a doctor below to book one.";
+                    return;
+                }
+
+                appointments.forEach(appointment => {
+                    const card = document.createElement("article");
+                    card.className = "doctor-card";
+
+                    const heading = document.createElement("h2");
+                    heading.textContent = appointment.doctor_name;
+
+                    const id = document.createElement("p");
+                    id.textContent =
+                        "Appointment ID: " + appointment.id;
+
+                    const specialization = document.createElement("p");
+                    specialization.textContent =
+                        "Specialization: " + appointment.specialization;
+
+                    const date = document.createElement("p");
+                    date.textContent =
+                        "Date: " + formatDate(appointment.appointment_date);
+
+                    const time = document.createElement("p");
+                    time.textContent =
+                        "Time: " + formatTime(appointment.appointment_time);
+
+                    const reason = document.createElement("p");
+                    reason.textContent =
+                        "Reason: " + (appointment.reason || "Not provided");
+
+                    const statusLine = document.createElement("p");
+                    statusLine.append("Status: ");
+
+                    const status = document.createElement("span");
+                    status.className =
+                        "status " + getStatusClass(appointment.status);
+                    status.textContent = appointment.status || "Unknown";
+
+                    statusLine.appendChild(status);
+
+                    card.append(
+                        heading,
+                        id,
+                        specialization,
+                        date,
+                        time,
+                        reason,
+                        statusLine
+                    );
+
+                    // Allow cancellation only while the appointment is Pending.
+                    if (appointment.status === "Pending") {
+                        const cancelButton =
+                            document.createElement("button");
+
+                        cancelButton.textContent = "Cancel Appointment";
+                        cancelButton.className = "cancel-button";
+
+                        cancelButton.addEventListener("click", () => {
+                            cancelAppointment(appointment.id);
+                        });
+
+                        card.appendChild(cancelButton);
+                    }
+
+                    list.appendChild(card);
+                });
+            } catch (error) {
+                list.textContent = error.message;
+            }
+        }
+
+        // Cancel a pending appointment.
+        async function cancelAppointment(appointmentId) {
+            if (!confirm("Are you sure you want to cancel this appointment?")) {
+                return;
+            }
+
+            const user = getCurrentUser();
+
+            if (!user) {
+                alert("Please log in again.");
+                window.location.href = "login.html";
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    "/appointments/" + appointmentId + "/cancel",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            user_id: Number(user.id)
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.message || "Could not cancel appointment."
+                    );
+                }
+
+                alert(result.message);
+                await loadMyAppointments();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        // Format the date for display.
+        function formatDate(value) {
+            if (!value) {
+                return "Not available";
+            }
+
+            const dateText = String(value).slice(0, 10);
+            const parts = dateText.split("-");
+
+            if (parts.length !== 3) {
+                return dateText;
+            }
+
+            return parts[2] + "-" + parts[1] + "-" + parts[0];
+        }
+
+        // Convert 24-hour time to 12-hour time.
+        function formatTime(value) {
+            if (!value) {
+                return "Not available";
+            }
+
+            const parts = String(value).split(":");
+            let hour = Number(parts[0]);
+            const minute = parts[1] || "00";
+            const period = hour >= 12 ? "PM" : "AM";
+
+            hour = hour % 12 || 12;
+
+            return hour + ":" + minute + " " + period;
+        }
+
+        // Assign a CSS class based on appointment status.
+        function getStatusClass(status) {
+            switch (String(status || "").toLowerCase()) {
+                case "pending":
+                    return "pending";
+                case "confirmed":
+                    return "confirmed";
+                case "cancelled":
+                    return "cancelled";
+                default:
+                    return "other-status";
+            }
+        }
+
+        // Load the doctor list when the page opens.
+        loadDoctors();
+    </script>
+</body>
+</html>

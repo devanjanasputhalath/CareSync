@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareSync - Signup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f7fc;
+            margin: 0;
+            padding: 40px 16px;
+        }
+
+        .container {
+            max-width: 420px;
+            margin: auto;
+            padding: 25px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: #176b87;
+        }
+
+        label {
+            display: block;
+            margin-top: 14px;
+            margin-bottom: 6px;
+        }
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 22px;
+            border: none;
+            border-radius: 6px;
+            background: #176b87;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        #message {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create Account</h1>
+
+        <form id="signupForm">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name"
+                   required maxlength="100">
+
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email"
+                   required maxlength="150">
+
+            <label for="password">Password (at least 8 characters)</label>
+            <input type="password" id="password" name="password"
+                   required minlength="8" autocomplete="new-password">
+
+            <button type="submit" id="signupButton">Sign Up</button>
+        </form>
+
+        <p id="message" role="status" aria-live="polite"></p>
+
+        <p class="login-link">
+            Already have an account? <a href="login.html">Log in</a>
+        </p>
+    </div>
+
+    <script>
+        const form = document.getElementById('signupForm');
+        const message = document.getElementById('message');
+        const button = document.getElementById('signupButton');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            message.textContent = '';
+            button.disabled = true;
+            button.textContent = 'Creating account...';
+
+            const userData = {
+                name: document.getElementById('name').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const response = await fetch('/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Signup failed.');
+                }
+
+                message.style.color = 'green';
+                message.textContent = result.message;
+
+                form.reset();
+
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1200);
+            } catch (error) {
+                message.style.color = 'crimson';
+                message.textContent =
+                    error.message === 'Failed to fetch'
+                        ? 'Cannot reach the server. Make sure CareSync is running.'
+                        : error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Sign Up';
+            }
+        });
+    </script>
+</body>
+</html>
